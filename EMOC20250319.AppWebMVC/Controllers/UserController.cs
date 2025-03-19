@@ -6,6 +6,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using EMOC20250319.AppWebMVC.Models;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace EMOC20250319.AppWebMVC.Controllers
 {
@@ -53,7 +59,7 @@ namespace EMOC20250319.AppWebMVC.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("UserId,Username,Email,PasswordHash,Role,Rol")] User user)
+        public async Task<IActionResult> Create([Bind("UserId,Username,Email,PasswordHash,Role")] User user)
         {
             if (ModelState.IsValid)
             {
@@ -64,6 +70,44 @@ namespace EMOC20250319.AppWebMVC.Controllers
             return View(user);
         }
 
+        [AllowAnonymous]
+        public async Task<IActionResult> CerrarSession()
+        {
+            // Hola mundo
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToAction("Index", "Home");
+        }
+        [AllowAnonymous]
+        public IActionResult Login()
+        {
+            return View();
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> Login(User user)
+        {
+            user.PasswordHash = CalcularHashMD5(user.PasswordHash);
+            var usuarioAuth = await _context.
+                Users.
+                FirstOrDefaultAsync(s => s.Email == user.Email && s.PasswordHash == user.PasswordHash);
+            if (usuarioAuth != null && usuarioAuth.UserId > 0 && usuarioAuth.Email == user.Email)
+            {
+                var claims = new[] {
+                    new Claim(ClaimTypes.Name, usuarioAuth.Email),
+                    new Claim("Id", usuarioAuth.UserId.ToString()),
+                     new Claim("Nombre", usuarioAuth.Username),
+                    new Claim(ClaimTypes.Role, usuarioAuth.Role)
+                    };
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+                return RedirectToAction("Index", "Home");
+            }
+            else
+            {
+                ModelState.AddModelError("", "El email o contraseña estan incorrectos");
+                return View();
+            }
+        }
         // GET: User/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
@@ -85,19 +129,22 @@ namespace EMOC20250319.AppWebMVC.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("UserId,Username,Email,PasswordHash,Role,Rol")] User user)
+        public async Task<IActionResult> Edit(int id, [Bind("UserId,Username,Email,Role")] User user)
         {
             if (id != user.UserId)
             {
                 return NotFound();
             }
-
-            if (ModelState.IsValid)
+            var usuarioUpdate = await _context.Users.FirstOrDefaultAsync(m => m.UserId == user.UserId);
             {
                 try
                 {
-                    _context.Update(user);
+                    usuarioUpdate.Username = user.Username;
+                    usuarioUpdate.Email = user.Email;
+                    usuarioUpdate.Role = user.Role;
+                    _context.Update(usuarioUpdate);
                     await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -107,12 +154,12 @@ namespace EMOC20250319.AppWebMVC.Controllers
                     }
                     else
                     {
-                        throw;
+                        return View(user);
                     }
                 }
-                return RedirectToAction(nameof(Index));
+            
             }
-            return View(user);
+          
         }
 
         // GET: User/Delete/5
@@ -151,6 +198,22 @@ namespace EMOC20250319.AppWebMVC.Controllers
         private bool UserExists(int id)
         {
             return _context.Users.Any(e => e.UserId == id);
+        }
+
+        private string CalcularHashMD5(string input)
+        {
+            using (MD5 md5 = MD5.Create())
+            {
+                byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+                byte[] hashBytes = md5.ComputeHash(inputBytes);
+
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < hashBytes.Length; i++)
+                {
+                    sb.Append(hashBytes[i].ToString("x2")); // "x2" convierte el byte en una cadena hexadecimal de dos caracteres.
+                }
+                return sb.ToString();
+            }
         }
     }
 }
