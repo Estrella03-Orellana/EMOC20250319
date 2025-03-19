@@ -200,6 +200,50 @@ namespace EMOC20250319.AppWebMVC.Controllers
             return _context.Users.Any(e => e.UserId == id);
         }
 
+        private bool UsuarioExists(int id)
+        {
+            return _context.Users.Any(e => e.UserId == id);
+        }
+
+        public async Task<IActionResult> Perfil()
+        {
+
+            var idStr = User.FindFirst("Id")?.Value;
+            int id = int.Parse(idStr);
+            var usuario = await _context.Users.FindAsync(id);
+            return View(usuario);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Perfil(int id, [Bind("Id,Nombre,Email,Estatus,Rol")] User user)
+        {
+            if (id != user.UserId)
+            {
+                return NotFound();
+            }
+            var usuarioUpdate = await _context.Users
+                 .FirstOrDefaultAsync(m => m.UserId == user.UserId);
+            try
+            {
+                usuarioUpdate.Username = user.Username;
+                usuarioUpdate.Email = user.Email;
+                usuarioUpdate.Role = user.Role;
+                _context.Update(usuarioUpdate);
+                await _context.SaveChangesAsync();
+                return RedirectToAction("Index", "Home");
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!UsuarioExists(user.UserId))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    return View(user);
+                }
+            }
+        }
         private string CalcularHashMD5(string input)
         {
             using (MD5 md5 = MD5.Create())
