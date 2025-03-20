@@ -63,6 +63,7 @@ namespace EMOC20250319.AppWebMVC.Controllers
         {
             if (ModelState.IsValid)
             {
+                user.PasswordHash = CalcularHashMD5(user.PasswordHash);
                 _context.Add(user);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));

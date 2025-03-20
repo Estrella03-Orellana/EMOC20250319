@@ -21,32 +21,42 @@ namespace EMOC20250319.AppWebMVC.Controllers
         }
 
         // GET: Product
-  
-              public async Task<IActionResult> Index( Product product, int topRegistro = 10)
+
+        public async Task<IActionResult> Index(Product? product, int topRegistro = 10)
         {
-                    var query = _context.Products.AsQueryable();
-                    if (!string.IsNullOrWhiteSpace(product.ProductName))
-                        query = query.Where(s => s.ProductName.Contains(product.ProductName));
-                    if (!string.IsNullOrWhiteSpace(product.Description))
-                        query = query.Where(s => s.Description.Contains(product.Description));
-                    if (product.BrandId > 0)
-                        query = query.Where(s => s.BrandId == product.BrandId);
-                    if (product.BrandId > 0)
-                        query = query.Where(s => s.BrandId == product.BrandId);
-                    if (topRegistro > 0)
-                        query = query.Take(topRegistro);
-                    query = query
-                        .Include(p => p.Category).Include(p => p.Brand);
+            var query = _context.Products.AsQueryable();
 
-                    var marcas = _context.Brands.ToList();
-                    marcas.Add(new Brand { BrandName = "SELECCIONAR", BrandId = 0 });
-                    var categorias = _context.Categories.ToList();
-                    categorias.Add(new Category { CategoryName = "SELECCIONAR", CategoryId = 0 });
-                    ViewData["CategoriaId"] = new SelectList(categorias, "Id", "Nombre", 0);
-                    ViewData["MarcaId"] = new SelectList(marcas, "Id", "Nombre", 0);
+            if (product != null)
+            {
+                if (!string.IsNullOrWhiteSpace(product.ProductName))
+                    query = query.Where(s => s.ProductName.Contains(product.ProductName));
+                if (!string.IsNullOrWhiteSpace(product.Description))
+                    query = query.Where(s => s.Description.Contains(product.Description));
+                if (product.BrandId > 0)
+                    query = query.Where(s => s.BrandId == product.BrandId);
+                if (product.CategoryId > 0)
+                    query = query.Where(s => s.CategoryId == product.CategoryId);
+            }
 
-                    return View(await query.ToListAsync());
+            if (topRegistro > 0)
+                query = query.Take(topRegistro);
+
+            query = query.Include(p => p.Category).Include(p => p.Brand);
+
+            // Cargar listas asegurándonos de que no sean null
+            var marcas = _context.Brands?.ToList() ?? new List<Brand>();
+            marcas.Add(new Brand { BrandName = "SELECCIONAR", BrandId = 0 });
+
+            var categorias = _context.Categories?.ToList() ?? new List<Category>();
+            categorias.Add(new Category { CategoryName = "SELECCIONAR", CategoryId = 0 });
+
+            // Usar los nombres correctos de las propiedades
+            ViewData["CategoriaId"] = new SelectList(categorias, "CategoryId", "CategoryName", 0);
+            ViewData["MarcaId"] = new SelectList(marcas, "BrandId", "BrandName", 0);
+
+            return View(await query.ToListAsync());
         }
+
 
         // GET: Product/Details/5
         public async Task<IActionResult> Details(int? id)
@@ -72,7 +82,7 @@ namespace EMOC20250319.AppWebMVC.Controllers
         public IActionResult Create()
         {
             ViewData["BrandId"] = new SelectList(_context.Brands, "BrandId", "BrandName");
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "CategoryId", "CategoryId");
+            ViewData["CategoryId"] = new SelectList(_context.Categories, "CategoryId", "CategoryName");
             return View();
         }
 
@@ -90,7 +100,7 @@ namespace EMOC20250319.AppWebMVC.Controllers
                 return RedirectToAction(nameof(Index));
             }
             ViewData["BrandId"] = new SelectList(_context.Brands, "BrandId", "BrandName", product.BrandId);
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "CategoryId", "CategoryId", product.CategoryId);
+            ViewData["CategoryId"] = new SelectList(_context.Categories, "CategoryId", "CategoryName", product.CategoryId);
             return View(product);
         }
 
@@ -108,7 +118,7 @@ namespace EMOC20250319.AppWebMVC.Controllers
                 return NotFound();
             }
             ViewData["BrandId"] = new SelectList(_context.Brands, "BrandId", "BrandName", product.BrandId);
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "CategoryId", "CategoryId", product.CategoryId);
+            ViewData["CategoryId"] = new SelectList(_context.Categories, "CategoryName", "CategoryName", product.CategoryId);
             return View(product);
         }
 
@@ -145,7 +155,7 @@ namespace EMOC20250319.AppWebMVC.Controllers
                 return RedirectToAction(nameof(Index));
             }
             ViewData["BrandId"] = new SelectList(_context.Brands, "BrandId", "BrandName", product.BrandId);
-            ViewData["CategoryId"] = new SelectList(_context.Categories, "CategoryId", "CategoryId", product.CategoryId);
+            ViewData["CategoryId"] = new SelectList(_context.Categories, "CategoryId", "CategoryName", product.CategoryId);
             return View(product);
         }
 
